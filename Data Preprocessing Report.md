@@ -268,12 +268,16 @@ For the final test evaluation, each ALS model is retrained on `train + test_hist
 All recommendation models are evaluated using:
 
 **MAP@100 (Mean Average Precision at 100)**
-$$\text{MAP@100} = \frac{1}{|U|} \sum_{u \in U} \frac{1}{\text{rank}_u}$$
+```
+MAP@100 = (1/|U|) * sum over users u of: 1 / rank(u)
+```
 
-where $\text{rank}_u$ is the rank of the best-ranked holdout item in the top-100 recommendation list (0 if no holdout item appears in top 100).
+where `rank(u)` is the rank of the best-ranked holdout item in the top-100 recommendation list for user u (contributing 0 if no holdout item appears in top 100).
 
 **NDCG@100 (Normalized Discounted Cumulative Gain at 100)**
-$$\text{NDCG@100} = \frac{1}{|U|} \sum_{u \in U} \frac{1}{\log_2(\text{rank}_u + 1)}$$
+```
+NDCG@100 = (1/|U|) * sum over users u of: 1 / log2(rank(u) + 1)
+```
 
 Both metrics are computed manually using `posexplode` on recommendation arrays, avoiding Spark's `RankingEvaluator` which caused cluster instability on the shared NYU Dataproc environment.
 
@@ -338,7 +342,9 @@ The computation is implemented in `market_segmentation.py` using MinHash Localit
 
 A book's **market position** is operationalized as its **reader set** — the set of users who marked the book as `is_read = 1` in the training data:
 
-$$\text{readers}(b) = \{u : \text{is\_read}_{ub} = 1\}$$
+```
+readers(b) = { u : is_read(u, b) = 1 }
+```
 
 This operationalization is deliberately simple and signal-agnostic. We do not use ratings (which would introduce preference bias) or reviews (which are sparser). A reader set is a pure behavioral signal: did users choose to read this book?
 
@@ -356,7 +362,9 @@ By representing books as reader sets and measuring their overlap, we recover mar
 
 The similarity between two books $A$ and $B$ is measured by the **Jaccard similarity** of their reader sets:
 
-$$\text{Jaccard}(A, B) = \frac{|\text{readers}(A) \cap \text{readers}(B)|}{|\text{readers}(A) \cup \text{readers}(B)|}$$
+```
+Jaccard(A, B) = |readers(A) ∩ readers(B)| / |readers(A) ∪ readers(B)|
+```
 
 Jaccard similarity ranges from 0 (no shared readers) to 1 (identical reader sets).
 
@@ -378,7 +386,9 @@ For reader sets represented as binary vectors (user read the book: 1, did not re
 ### The scalability challenge
 
 With 17,674 qualified books in the model, naive pairwise similarity computation requires evaluating:
-$$\binom{17,674}{2} = 156,126,051 \text{ pairs}$$
+```
+C(17674, 2) = 17674 * 17673 / 2 = 156,126,051 pairs
+```
 
 Each pair requires comparing reader sets of size up to 30,000 users. This brute-force approach is computationally infeasible on a shared cluster. MinHash LSH solves this by approximating Jaccard similarity without evaluating all pairs explicitly.
 
@@ -386,7 +396,9 @@ Each pair requires comparing reader sets of size up to 30,000 users. This brute-
 
 **Step 1 — MinHash signatures.** Each book's reader set is hashed to a compact signature vector using $k$ independent hash functions. The key property of MinHash is:
 
-$$\Pr[\text{minhash}(A) = \text{minhash}(B)] = \text{Jaccard}(A, B)$$
+```
+Pr[ minhash(A) = minhash(B) ] = Jaccard(A, B)
+```
 
 The probability that two books have the same MinHash value equals their Jaccard similarity. By applying many hash functions, we get a signature that approximates the full Jaccard similarity.
 
@@ -576,8 +588,6 @@ The key scalability insight is that MinHash LSH reduces the candidate pair space
 **Training data only:** Market segmentation uses only the 60% of users in `train.parquet`. The tuning and test users' reading behavior (40% of users) is not considered. This means approximately 40% of the reading population's preferences are not reflected in the similarity estimates. In a production setting, all available reading data would be used for market segmentation.
 
 **Threshold sensitivity:** The Jaccard threshold of 0.5 determines which pairs are even considered as candidates. Pairs with true Jaccard similarity just below 0.5 are never retrieved, regardless of their actual similarity. If the goal were to find all pairs above a certain threshold with high certainty, a lower threshold would be needed.
-
-
 
 
 
@@ -778,6 +788,7 @@ The popularity baseline is a surprisingly competitive benchmark — outperformin
 **Genre bias:** Popular books tend to cluster in mainstream genres (literary fiction, fantasy, romance). Readers of niche genres may find the top-100 list poorly matched to their tastes, but the aggregate MAP/NDCG metrics hide this per-user variance.
 
 
+
 # Deliverable 3: Explicit-Feedback ALS Recommender
 ## Goodreads Book Recommendation System — DS-GA 1004 Big Data Capstone
 
@@ -839,12 +850,14 @@ The rating distribution is left-skewed (users tend to rate books they enjoyed):
 
 ALS factorizes the user-item rating matrix $R$ into two low-dimensional matrices:
 
-$$R \approx X \cdot Y^T$$
+```
+R ≈ X · Y^T
+```
 
 Where:
-- $X \in \mathbb{R}^{|U| \times k}$ — user latent factor matrix (one k-dimensional vector per user)
-- $Y \in \mathbb{R}^{|I| \times k}$ — item latent factor matrix (one k-dimensional vector per item)
-- $k$ = rank (number of latent dimensions)
+- `X` — user latent factor matrix, shape (|U|, k): one k-dimensional vector per user
+- `Y` — item latent factor matrix, shape (|I|, k): one k-dimensional vector per item
+- `k` = rank (number of latent dimensions)
 
 The algorithm alternates between two steps:
 1. **Fix $Y$, solve for $X$:** For each user, solve a regularized least squares problem to find the user vector that best predicts their known ratings
@@ -852,9 +865,13 @@ The algorithm alternates between two steps:
 
 This alternation continues for `maxIter` iterations. The objective function minimized is:
 
-$$\min_{X, Y} \sum_{(u,i) \in \text{observed}} (r_{ui} - x_u \cdot y_i)^2 + \lambda \left( \sum_u \|x_u\|^2 + \sum_i \|y_i\|^2 \right)$$
+```
+minimize over X, Y:
+  sum over observed (u,i) of: (r_ui - x_u · y_i)^2
+  + lambda * ( sum_u ||x_u||^2 + sum_i ||y_i||^2 )
+```
 
-Where $\lambda$ is the regularization parameter (`regParam`) that penalizes large latent vectors to prevent overfitting.
+Where `lambda` is the regularization parameter (`regParam`) that penalizes large latent vectors to prevent overfitting.
 
 ### Spark ALS configuration
 
@@ -908,7 +925,9 @@ The tuning model learns embeddings for tuning users (via `tuning_history`). The 
 
 For explicit ALS, RMSE (Root Mean Squared Error) is the appropriate tuning metric:
 
-$$\text{RMSE} = \sqrt{\frac{1}{|\mathcal{H}|} \sum_{(u,i) \in \mathcal{H}} (r_{ui} - \hat{r}_{ui})^2}$$
+```
+RMSE = sqrt( (1/|H|) * sum over (u,i) in holdout H of: (r_ui - r_hat_ui)^2 )
+```
 
 Where $\mathcal{H}$ is the tuning holdout set (filtered to `rating > 0`).
 
@@ -1056,6 +1075,7 @@ The popularity baseline recommends universally beloved books that heavy readers 
 **Explicit is not wrong — it is incomplete.** Explicit ratings are high-quality signal when present. The failure of explicit ALS motivates the hybrid approach in Deliverable 5, where explicit ratings are incorporated as a confidence booster on top of richer implicit signals, rather than as the sole training signal.
 
 
+
 # Deliverable 4: Implicit-Feedback ALS Recommender
 ## Goodreads Book Recommendation System — DS-GA 1004 Big Data Capstone
 
@@ -1114,13 +1134,19 @@ Implicit ALS uses ~7% more interactions than explicit ALS and, crucially, captur
 Standard implicit ALS (Hu, Koren, and Volinsky, 2008) decomposes each interaction into two components:
 
 **Preference** $p_{ui}$: A binary signal indicating whether the user has a positive preference for the item.
-$$p_{ui} = 1 \text{ for all observed interactions}$$
+```
+p_ui = 1  for all observed interactions
+```
 
 **Confidence** $c_{ui}$: How strongly we trust that the user actually prefers the item. More evidence of engagement → higher confidence.
 
 The ALS objective function in implicit mode becomes:
 
-$$\min_{X, Y} \sum_{u,i} c_{ui} (p_{ui} - x_u \cdot y_i)^2 + \lambda \left( \sum_u \|x_u\|^2 + \sum_i \|y_i\|^2 \right)$$
+```
+minimize over X, Y:
+  sum over all (u,i) of: c_ui * (p_ui - x_u · y_i)^2
+  + lambda * ( sum_u ||x_u||^2 + sum_i ||y_i||^2 )
+```
 
 The sum is over **all** user-item pairs — not just observed ones. Unobserved interactions receive a baseline confidence of 1 (weak negative signal), while observed interactions receive higher confidence proportional to engagement.
 
@@ -1128,7 +1154,9 @@ The sum is over **all** user-item pairs — not just observed ones. Unobserved i
 
 We extend the standard single-alpha formula with a dual-alpha design that assigns different weights to reading vs reviewing:
 
-$$c_{ui} = 1 + \alpha \cdot \text{is\_read}_{ui} + \beta \cdot \text{is\_reviewed}_{ui}$$
+```
+c_ui = 1 + alpha * is_read_ui + beta * is_reviewed_ui
+```
 
 This gives three confidence levels:
 
@@ -1209,7 +1237,9 @@ Tuning is conducted in two sequential stages. All tuning uses MAP@100 and NDCG@1
 | coldStartStrategy | drop | Drop unseen users/items |
 
 **Confidence formula:**
-$$c_{ui} = 1 + 10 \cdot \text{is\_read}_{ui} + 20 \cdot \text{is\_reviewed}_{ui}$$
+```
+c_ui = 1 + 10 * is_read_ui + 20 * is_reviewed_ui
+```
 
 ---
 
@@ -1336,6 +1366,8 @@ The improvement is not marginal — implicit ALS is approximately 6,000 times be
 
 **Cold-start users:** At evaluation time, each user is represented by only 10 history interactions. This is a cold-to-warm start scenario — the model must generate recommendations from limited context. Real deployments would give the model access to the user's full history.
 
+
+
 # Deliverable 5: Combined Explicit + Implicit Feedback ALS Recommender
 ## Goodreads Book Recommendation System — DS-GA 1004 Big Data Capstone
 
@@ -1372,7 +1404,9 @@ The results from Deliverables 3 and 4 motivate the combined approach from two di
 
 The combined model operates in implicit ALS mode (`implicitPrefs=True`) with a modified confidence formula that incorporates the explicit rating as an additive boost:
 
-$$c_{ui} = 1 + \alpha \cdot \text{is\_read}_{ui} + \beta \cdot \text{is\_reviewed}_{ui} + w \cdot \text{rating}_{ui}$$
+```
+c_ui = 1 + alpha * is_read_ui + beta * is_reviewed_ui + w * rating_ui
+```
 
 Where:
 - $\alpha = 10$ — confidence weight for reading (from implicit ALS tuning)
@@ -1384,7 +1418,9 @@ Where:
 
 A row is included if **any** of the following conditions holds:
 
-$$\text{is\_read}_{ui} = 1 \quad \text{OR} \quad \text{rating}_{ui} > 0 \quad \text{OR} \quad \text{is\_reviewed}_{ui} = 1$$
+```
+is_read_ui = 1  OR  rating_ui > 0  OR  is_reviewed_ui = 1
+```
 
 This captures every meaningful interaction across both explicit and implicit feedback. No interaction with any positive signal is discarded.
 
@@ -1430,7 +1466,9 @@ Both explicit ALS (via RMSE-based search) and implicit ALS (via MAP-based search
 
 The rating weight `w` was initialized using a principled estimate before tuning. Since `alpha=10` represents the confidence contribution of a single read event, we can anchor `w` relative to the average rating:
 
-$$w_{\text{init}} = \frac{\alpha}{\bar{r}} = \frac{10}{3.93} \approx 2.5 \rightarrow 5 \text{ (rounded up)}$$
+```
+w_init = alpha / avg_rating = 10 / 3.93 ≈ 2.5  →  rounded up to 5
+```
 
 This means that an average-rated book (3.93 stars) contributes approximately the same additional confidence as a single read event ($w \cdot \bar{r} \approx 5 \times 3.93 \approx 20 \approx 2\alpha$). A 5-star book contributes $5 \times 5 = 25$ additional confidence — more than double the read-only signal — reflecting strong positive preference.
 
@@ -1479,7 +1517,9 @@ Given that rank, regParam, alpha, and beta are fixed from prior tuning, the only
 | coldStartStrategy | drop | Drop unseen users/items |
 
 **Final confidence formula:**
-$$c_{ui} = 1 + 10 \cdot \text{is\_read}_{ui} + 20 \cdot \text{is\_reviewed}_{ui} + 5 \cdot \text{rating}_{ui}$$
+```
+c_ui = 1 + 10 * is_read_ui + 20 * is_reviewed_ui + 5 * rating_ui
+```
 
 ---
 
