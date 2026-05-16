@@ -590,7 +590,6 @@ The key scalability insight is that MinHash LSH reduces the candidate pair space
 **Threshold sensitivity:** The Jaccard threshold of 0.5 determines which pairs are even considered as candidates. Pairs with true Jaccard similarity just below 0.5 are never retrieved, regardless of their actual similarity. If the goal were to find all pairs above a certain threshold with high certainty, a lower threshold would be needed.
 
 
-
 # Deliverable 2: Popularity Baseline Recommender
 ## Goodreads Book Recommendation System — DS-GA 1004 Big Data Capstone
 
@@ -608,12 +607,14 @@ The popularity baseline is implemented in `popularity_baseline.py` and operates 
 
 Books are ranked by a **rating-weighted popularity score** that combines two signals:
 
-$$\text{popularity\_score}(b) = \bar{r}_b \times \log(\text{read\_count}_b)$$
+```
+popularity_score(b) = avg_rating(b) * log(read_count(b))
+```
 
 Where:
-- $\bar{r}_b$ = average star rating for book $b$ among users who gave an explicit rating (`rating > 0`)
-- $\text{read\_count}_b$ = number of users who marked book $b$ as `is_read = 1`
-- $\log$ = natural logarithm
+- `avg_rating(b)` = average star rating for book b among users who gave an explicit rating (rating > 0)
+- `read_count(b)` = number of users who marked book b as is_read = 1
+- `log` = natural logarithm
 
 ### Why this formula?
 
@@ -621,7 +622,7 @@ Where:
 
 **Average rating alone** would favor books with very few ratings — a book with a single 5-star rating would outrank a book with 10,000 ratings averaging 4.8 stars. This ignores the statistical reliability of the estimate.
 
-**The product** $\bar{r}_b \times \log(\text{read\_count}_b)$ balances both:
+**The product** `avg_rating(b) * log(read_count(b))` balances both:
 - The logarithm compresses the volume scale — going from 100 to 1,000 readers is a bigger improvement than going from 100,000 to 101,000
 - High ratings still matter — a high-volume but low-rated book is penalized by its average rating
 - A book must be both widely read and well-rated to score highly
