@@ -1,0 +1,14 @@
+metric,value
+rank,20
+reg,0.1
+alpha,10
+beta,20
+max_iter,10
+tuning_map,0.132185
+tuning_ndcg,0.252628
+tuning_users,6086
+tuning_hits,4611
+test_map,0.131615
+test_ndcg,0.249137
+test_users,6142
+test_hits,4569

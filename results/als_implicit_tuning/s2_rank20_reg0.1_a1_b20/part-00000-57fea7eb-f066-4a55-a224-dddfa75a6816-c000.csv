@@ -1,0 +1,11 @@
+metric,value
+stage,2
+rank,20
+reg,0.1
+alpha,1
+beta,20
+max_iter,5
+MAP@100,0.129609
+NDCG@100,0.245389
+n_users,6086
+n_hits,4477

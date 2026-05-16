@@ -1,0 +1,8 @@
+metric,value
+popularity_formula,avg_rating × log(read_count)
+tuning_map,0.100211
+tuning_ndcg,0.199408
+tuning_users,6168
+test_map,0.101258
+test_ndcg,0.199162
+test_users,6246

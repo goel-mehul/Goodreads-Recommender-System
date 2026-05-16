@@ -1,0 +1,16 @@
+metric,value
+rank,20
+reg,0.1
+alpha,10
+beta,20
+w,5
+max_iter,10
+formula,1 + 10*is_read + 20*is_reviewed + 5*rating
+tuning_map,0.142289
+tuning_ndcg,0.274438
+tuning_users,6168
+tuning_hits,5097
+test_map,0.141450
+test_ndcg,0.270054
+test_users,6246
+test_hits,5060

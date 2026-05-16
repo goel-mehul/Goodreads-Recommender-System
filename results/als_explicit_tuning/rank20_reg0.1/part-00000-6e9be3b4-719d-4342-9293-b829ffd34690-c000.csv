@@ -1,0 +1,5 @@
+metric,value
+rank,20
+reg,0.1
+max_iter,5
+rmse,0.906690
